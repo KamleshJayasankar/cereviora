@@ -1,0 +1,197 @@
+/**
+ * CEREVIORA — Global CSS
+ *
+ * This file defines:
+ * - CSS custom properties (variables) for the design system
+ * - A CSS reset / base styles
+ * - Utility classes shared across the app
+ *
+ * We use CSS variables so that changing one value (e.g. --color-accent)
+ * updates every place it is used automatically.
+ */
+
+/* ── Design tokens ──────────────────────────────────────────────────────────── */
+:root {
+  /* Colors */
+  --color-bg:          #050810;
+  --color-surface:     #0a0f1e;
+  --color-surface-2:   #0f1628;
+  --color-border:      rgba(100, 200, 255, 0.12);
+  --color-accent:      #00d4ff;
+  --color-accent-2:    #7c3aed;
+  --color-accent-glow: rgba(0, 212, 255, 0.3);
+  --color-text:        #e2e8f0;
+  --color-text-muted:  #64748b;
+  --color-success:     #10b981;
+  --color-warning:     #f59e0b;
+  --color-error:       #ef4444;
+  --color-pending:     #6366f1;
+
+  /* Typography */
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Shadows / glows */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-accent: 0 0 24px var(--color-accent-glow);
+}
+
+/* ── Reset ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography ─────────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
+h2 { font-size: clamp(1.25rem, 3vw, 1.75rem); }
+h3 { font-size: 1.125rem; }
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover { text-decoration: underline; }
+
+code, pre {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+/* ── Utility: Glass card ────────────────────────────────────────────────────── */
+.glass-card {
+  background: rgba(10, 15, 30, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── Utility: Status badges ─────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge--pending     { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+.badge--running     { background: rgba(0,212,255,0.12); color: var(--color-accent); }
+.badge--awaiting    { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.badge--succeeded   { background: rgba(16,185,129,0.15); color: #34d399; }
+.badge--failed      { background: rgba(239,68,68,0.15); color: #f87171; }
+
+/* ── Utility: Buttons ───────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #00d4ff20, #7c3aed20);
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00d4ff30, #7c3aed30);
+  box-shadow: var(--shadow-accent);
+}
+
+.btn-danger {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.4);
+  color: #f87171;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(239,68,68,0.2);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ── Layout helpers ─────────────────────────────────────────────────────────── */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

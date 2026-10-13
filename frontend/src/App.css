@@ -1,0 +1,84 @@
+/* ── App layout wrapper ───────────────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── Navigation bar ─────────────────────────────────────────────────────────── */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-8);
+  height: 60px;
+  background: rgba(5, 8, 16, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.nav-logo {
+  font-size: 1.5rem;
+  color: var(--color-accent);
+  line-height: 1;
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { text-shadow: 0 0 8px var(--color-accent-glow); }
+  50% { text-shadow: 0 0 24px var(--color-accent-glow), 0 0 48px var(--color-accent-glow); }
+}
+
+.nav-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.nav-link {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  color: var(--color-text);
+  background: rgba(255,255,255,0.05);
+  text-decoration: none;
+}
+
+.nav-link.active {
+  color: var(--color-accent);
+  background: rgba(0, 212, 255, 0.08);
+}
+
+/* ── Main content area ──────────────────────────────────────────────────────── */
+.main-content {
+  flex: 1;
+  overflow: auto;
+}
