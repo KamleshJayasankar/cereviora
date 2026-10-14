@@ -16,6 +16,7 @@
 
 import type {
   Task,
+  TaskListResponse,
   CreateTaskRequest,
   UpdateTaskRequest,
   HealthResponse,
@@ -51,8 +52,8 @@ export const getHealth = (): Promise<HealthResponse> =>
 // ──────────────────────────────────────────────────────────────────────────────
 // Tasks
 // ──────────────────────────────────────────────────────────────────────────────
-export const getTasks = (): Promise<Task[]> =>
-  request<Task[]>('/tasks');
+export const getTasks = (): Promise<TaskListResponse> =>
+  request<TaskListResponse>('/tasks');
 
 export const getTask = (id: string): Promise<Task> =>
   request<Task>(`/tasks/${id}`);

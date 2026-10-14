@@ -11,6 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
 from app.api import health
+from app.api import tasks
+
+# Import models so Base.metadata knows about the tasks table.
+# Without this import, create_all() won't create the table.
+import app.models.task  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Create the tables in the database (if they don't already exist).
@@ -51,6 +56,7 @@ app.add_middleware(
 # Each router is a mini-application with its own set of endpoints.
 # ---------------------------------------------------------------------------
 app.include_router(health.router)
+app.include_router(tasks.router)
 
 
 @app.get("/", tags=["System"])

@@ -93,3 +93,9 @@ export interface HealthResponse {
 export interface ApiError {
   detail: string;
 }
+
+export interface TaskListResponse {
+  tasks: Task[];
+  total: number;
+  has_more: boolean;
+}

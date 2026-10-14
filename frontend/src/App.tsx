@@ -10,6 +10,7 @@
  */
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
+import Tasks from './pages/Tasks'
 import './App.css'
 
 function App() {
@@ -42,8 +43,7 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            {/* Additional routes added as we build pages */}
-            <Route path="/tasks" element={<Dashboard />} />
+            <Route path="/tasks" element={<Tasks />} />
             <Route path="/history" element={<Dashboard />} />
           </Routes>
         </main>

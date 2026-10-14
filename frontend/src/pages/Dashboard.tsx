@@ -10,9 +10,17 @@
  * It's like asking "fetch the data when the page loads".
  */
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getHealth } from '../services/api'
 import type { HealthResponse } from '../types'
 import './Dashboard.css'
+
+// Import getTaskCounts via a raw fetch so Dashboard stays decoupled
+async function fetchCounts() {
+  const r = await fetch('/api/tasks/counts')
+  if (!r.ok) return null
+  return r.json() as Promise<Record<string, number>>
+}
 
 // ── Workflow node data (placeholder counts until real tasks exist) ──────────
 const WORKFLOW_NODES = [
@@ -32,8 +40,13 @@ export default function Dashboard() {
   const [healthError, setHealthError] = useState<string | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
 
+  // State: live task counts from the backend
+  const [counts, setCounts] = useState<Record<string, number> | null>(null)
+
   // State: which workflow node is the user inspecting?
   const [selectedNode, setSelectedNode] = useState<NodeId | null>(null)
+
+  const navigate = useNavigate()
 
   // ── Fetch health on mount ──────────────────────────────────────────────────
   useEffect(() => {
@@ -57,6 +70,11 @@ export default function Dashboard() {
 
     checkHealth()
     return () => { cancelled = true }  // cleanup on unmount
+  }, [])
+
+  // ── Fetch task counts on mount ─────────────────────────────────────────────
+  useEffect(() => {
+    fetchCounts().then(data => { if (data) setCounts(data) })
   }, [])
 
   const selectedNodeData = WORKFLOW_NODES.find(n => n.id === selectedNode)
@@ -99,11 +117,11 @@ export default function Dashboard() {
       {/* ── Stats overview ───────────────────────────────────────────────── */}
       <section className="stats-row container">
         {[
-          { label: 'Total Tasks',   value: '—', icon: '◈', color: 'var(--color-accent)' },
-          { label: 'Running',       value: '—', icon: '▶', color: '#10b981' },
-          { label: 'Pending',       value: '—', icon: '◎', color: '#6366f1' },
-          { label: 'Completed',     value: '—', icon: '✓', color: '#10b981' },
-          { label: 'Failed',        value: '—', icon: '✕', color: '#ef4444' },
+          { label: 'Total Tasks', value: counts?.total   ?? '—', icon: '◈', color: 'var(--color-accent)' },
+          { label: 'Running',     value: counts?.RUNNING  ?? '—', icon: '▶', color: '#10b981' },
+          { label: 'Pending',     value: counts?.PENDING  ?? '—', icon: '◎', color: '#6366f1' },
+          { label: 'Completed',   value: counts?.SUCCEEDED ?? '—', icon: '✓', color: '#10b981' },
+          { label: 'Failed',      value: counts?.FAILED   ?? '—', icon: '✕', color: '#ef4444' },
         ].map(stat => (
           <div key={stat.label} className="stat-card glass-card">
             <span className="stat-icon" style={{ color: stat.color }}>{stat.icon}</span>
@@ -168,10 +186,10 @@ export default function Dashboard() {
       <section className="quick-actions container">
         <h2>Quick Actions</h2>
         <div className="action-grid">
-          <button className="action-card glass-card" disabled>
+          <button className="action-card glass-card" onClick={() => navigate('/tasks')}>
             <span className="action-icon" style={{ color: 'var(--color-accent)' }}>+</span>
             <span className="action-label">New Task</span>
-            <span className="action-desc">Coming in Day 2</span>
+            <span className="action-desc">Create and manage tasks</span>
           </button>
           <button className="action-card glass-card" disabled>
             <span className="action-icon" style={{ color: '#10b981' }}>▶</span>
