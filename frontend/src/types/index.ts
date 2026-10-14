@@ -51,6 +51,7 @@ export interface Task {
   status: TaskStatus;
   created_at: string;
   updated_at: string;
+  approved_at: string | null;
   steps: TaskStep[];
 }
 
@@ -58,6 +59,7 @@ export interface ExecutionRecord {
   id: string;
   task_id: string;
   step_id: string | null;
+  attempt: number;
   event_type: string;
   status: string;
   input_summary: string | null;

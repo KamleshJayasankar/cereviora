@@ -9,6 +9,7 @@ Think of it as the main() function of the backend.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from sqlalchemy import inspect, text
 from app.database import engine, Base
 from app.api import health
 from app.api import tasks
@@ -23,6 +24,13 @@ import app.models  # noqa: F401
 # development this approach is fast and simple.
 # ---------------------------------------------------------------------------
 Base.metadata.create_all(bind=engine)
+# `create_all` creates new tables but deliberately does not alter existing ones.
+# Keep existing Day 3 SQLite databases usable when adding the approval timestamp.
+if engine.dialect.name == "sqlite" and "tasks" in inspect(engine).get_table_names():
+    task_columns = {column["name"] for column in inspect(engine).get_columns("tasks")}
+    if "approved_at" not in task_columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE tasks ADD COLUMN approved_at DATETIME NULL"))
 
 # ---------------------------------------------------------------------------
 # Create the FastAPI application instance.

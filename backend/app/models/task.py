@@ -100,6 +100,8 @@ class Task(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
     # Relationship to child task steps, automatically ordered by step_number.
     # cascade="all, delete-orphan" ensures when a Task is deleted, all its steps are also deleted.
     steps = relationship(

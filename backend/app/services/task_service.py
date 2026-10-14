@@ -28,6 +28,8 @@ from app.models.task_step import TaskStep, StepStatus
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.services.state_machine import validate_task_transition, InvalidStateTransitionError
 from app.services.planner import get_planner, PlanPolicyError
+from app.models.execution_record import ExecutionRecord
+from app.services.execution_engine import execute_step
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -133,6 +135,10 @@ def update_task(db: Session, task_id: str, data: TaskUpdate) -> Task:
         # Client sent an empty body — nothing to do, return as-is
         return task
 
+    # Approval covers a specific task definition. Any edits require a fresh approval.
+    if task.approved_at is not None:
+        task.approved_at = None
+
     for field, value in updates.items():
         setattr(task, field, value)
 
@@ -201,8 +207,12 @@ def plan_task(
     """
     task = _get_task_or_404(db, task_id)
 
-    # 1. State machine check
+    # 1. State machine check. Failed tasks must pass through PENDING before
+    # receiving a fresh plan, matching the declared lifecycle transitions.
     try:
+        if task.status == TaskStatus.FAILED:
+            validate_task_transition(task.status, TaskStatus.PENDING)
+            task.status = TaskStatus.PENDING
         validate_task_transition(task.status, TaskStatus.AWAITING_APPROVAL)
     except InvalidStateTransitionError as err:
         raise HTTPException(
@@ -241,8 +251,99 @@ def plan_task(
 
     # 5. Transition task status
     task.status = TaskStatus.AWAITING_APPROVAL
+    task.approved_at = None
     task.updated_at = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(task)
     return task
+
+
+def approve_task(db: Session, task_id: str) -> Task:
+    """Record explicit human approval for a complete, unmodified plan."""
+    task = _get_task_or_404(db, task_id)
+    if task.status != TaskStatus.AWAITING_APPROVAL or not task.steps:
+        raise HTTPException(status_code=400, detail="Only a planned task awaiting approval can be approved.")
+    if task.approved_at is not None:
+        raise HTTPException(status_code=409, detail="This plan has already been approved.")
+    expected = list(range(1, len(task.steps) + 1))
+    if [step.step_number for step in task.steps] != expected or any(step.status != StepStatus.PENDING for step in task.steps):
+        raise HTTPException(status_code=400, detail="The task plan is incomplete or invalid and cannot be approved.")
+    now = datetime.now(timezone.utc)
+    task.approved_at = now
+    task.updated_at = now
+    db.add(ExecutionRecord(task_id=task.id, event_type="APPROVAL", status="APPROVED", output_summary="Human approval recorded for the current plan.", verified=True, verification_result="Plan order and pending step states validated.", created_at=now, completed_at=now))
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def execute_task(db: Session, task_id: str) -> Task:
+    """Execute approved tasks one step at a time, persisting each outcome."""
+    task = _get_task_or_404(db, task_id)
+    if task.status != TaskStatus.AWAITING_APPROVAL:
+        raise HTTPException(status_code=400, detail="Only a task awaiting approval can be executed.")
+    if task.approved_at is None:
+        raise HTTPException(status_code=403, detail="Task approval is required before execution.")
+    if not task.steps or any(step.status != StepStatus.PENDING for step in task.steps):
+        raise HTTPException(status_code=400, detail="Task plan is incomplete or has already been executed.")
+
+    try:
+        validate_task_transition(task.status, TaskStatus.RUNNING)
+    except InvalidStateTransitionError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    task.status = TaskStatus.RUNNING
+    task.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    for step in task.steps:
+        now = datetime.now(timezone.utc)
+        previous_attempts = db.query(ExecutionRecord).filter(ExecutionRecord.step_id == step.id, ExecutionRecord.event_type == "STEP").count()
+        record = ExecutionRecord(task_id=task.id, step_id=step.id, attempt=previous_attempts + 1, event_type="STEP", status="RUNNING", input_summary=f"{step.step_type}: {step.title}", created_at=now)
+        step.status = StepStatus.RUNNING
+        db.add(record)
+        db.commit()
+        try:
+            output, verified, verification = execute_step(db, task, step)
+            if step.step_type == "verify" and not verified:
+                raise RuntimeError("Final database verification did not pass.")
+            step.status = StepStatus.SUCCEEDED
+            step.result_summary = output
+            step.error_message = None
+            step.completed_at = datetime.now(timezone.utc)
+            record.status = "SUCCEEDED"
+            record.output_summary = output
+            record.verified = verified
+            record.verification_result = verification
+            record.completed_at = step.completed_at
+            db.commit()
+        except Exception as err:
+            db.rollback()
+            step = db.query(TaskStep).filter(TaskStep.id == step.id).one()
+            record = db.query(ExecutionRecord).filter(ExecutionRecord.id == record.id).one()
+            step.status = StepStatus.FAILED
+            step.error_message = str(err)[:2000]
+            step.completed_at = datetime.now(timezone.utc)
+            record.status = "FAILED"
+            record.error_details = str(err)[:2000]
+            record.verified = False
+            record.verification_result = "Execution failed before successful verification."
+            record.completed_at = step.completed_at
+            task = db.query(Task).filter(Task.id == task_id).one()
+            task.status = TaskStatus.FAILED
+            task.updated_at = step.completed_at
+            db.commit()
+            db.refresh(task)
+            return task
+
+    task = db.query(Task).filter(Task.id == task_id).one()
+    task.status = TaskStatus.SUCCEEDED
+    task.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def get_task_history(db: Session, task_id: str) -> list[ExecutionRecord]:
+    _get_task_or_404(db, task_id)
+    return db.query(ExecutionRecord).filter(ExecutionRecord.task_id == task_id).order_by(ExecutionRecord.created_at, ExecutionRecord.id).all()

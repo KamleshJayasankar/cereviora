@@ -122,27 +122,6 @@ class TaskUpdate(BaseModel):
         return value.strip() if value else value
 
 
-# ── Response schemas (what the API returns) ───────────────────────────────────
-
-class TaskStepResponse(BaseModel):
-    """
-    A single execution step returned as part of a TaskResponse.
-    Steps are implemented in Day 3; this schema is defined now so the
-    frontend types stay consistent.
-    """
-    id: str
-    task_id: str
-    step_number: int
-    title: str
-    description: str
-    step_type: str
-    status: str
-    result_summary: Optional[str]
-    error_message: Optional[str]
-    created_at: datetime
-    completed_at: Optional[datetime]
-
-    model_config = {"from_attributes": True}
 
 
 class TaskResponse(BaseModel):
@@ -159,6 +138,7 @@ class TaskResponse(BaseModel):
     status: TaskStatus
     created_at: datetime
     updated_at: datetime
+    approved_at: Optional[datetime] = None
     steps: list[TaskStepResponse] = []
 
     model_config = {"from_attributes": True}
@@ -169,5 +149,23 @@ class TaskListResponse(BaseModel):
     tasks: list[TaskResponse]
     total: int
     has_more: bool = False
+
+    model_config = {"from_attributes": True}
+
+
+class ExecutionRecordResponse(BaseModel):
+    id: str
+    task_id: str
+    step_id: Optional[str] = None
+    attempt: int
+    event_type: str
+    status: str
+    input_summary: Optional[str] = None
+    output_summary: Optional[str] = None
+    error_details: Optional[str] = None
+    verified: bool
+    verification_result: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

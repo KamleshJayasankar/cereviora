@@ -27,10 +27,26 @@ from app.schemas.task import (
     TaskResponse,
     TaskListResponse,
     PlanGenerateRequest,
+    ExecutionRecordResponse,
 )
 from app.services import task_service
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
+
+
+@router.post("/{task_id}/approve", response_model=TaskResponse, summary="Approve a validated task plan")
+def approve_task(task_id: str, db: Session = Depends(get_db)):
+    return task_service.approve_task(db, task_id)
+
+
+@router.post("/{task_id}/execute", response_model=TaskResponse, summary="Execute an approved task plan")
+def execute_task(task_id: str, db: Session = Depends(get_db)):
+    return task_service.execute_task(db, task_id)
+
+
+@router.get("/{task_id}/history", response_model=list[ExecutionRecordResponse], summary="Read approval and execution audit history")
+def task_history(task_id: str, db: Session = Depends(get_db)):
+    return task_service.get_task_history(db, task_id)
 
 
 # ── POST /tasks ───────────────────────────────────────────────────────────────

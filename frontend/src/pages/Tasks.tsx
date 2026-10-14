@@ -23,8 +23,8 @@
  *               after the data arrives.
  */
 import { useEffect, useState, FormEvent } from 'react'
-import { getTasks, createTask, deleteTask, planTask } from '../services/api'
-import type { Task, TaskStatus, StepStatus } from '../types'
+import { getTasks, createTask, deleteTask, planTask, approveTask, executeTask, getTaskHistory } from '../services/api'
+import type { Task, TaskStatus, StepStatus, ExecutionRecord } from '../types'
 import './Tasks.css'
 
 // ── Status badge helper ────────────────────────────────────────────────────────
@@ -90,6 +90,8 @@ export default function Tasks() {
   // ── State: planning & expansion ───────────────────────────────────────────
   const [planningId, setPlanningId] = useState<string | null>(null)
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+  const [historyByTask, setHistoryByTask] = useState<Record<string, ExecutionRecord[]>>({})
+  const [busyAction, setBusyAction] = useState<string | null>(null)
 
   function toggleExpand(id: string) {
     setExpandedTaskIds(prev => {
@@ -112,6 +114,31 @@ export default function Tasks() {
       alert(err instanceof Error ? err.message : 'Failed to generate plan')
     } finally {
       setPlanningId(null)
+    }
+  }
+
+  async function handleTaskAction(id: string, action: 'approve' | 'execute') {
+    setBusyAction(`${action}:${id}`)
+    try {
+      const updated = action === 'approve' ? await approveTask(id) : await executeTask(id)
+      setTasks(prev => prev.map(t => t.id === id ? updated : t))
+      setExpandedTaskIds(prev => new Set(prev).add(id))
+      const history = await getTaskHistory(id)
+      setHistoryByTask(prev => ({ ...prev, [id]: history }))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : `Failed to ${action} task`)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function handleHistory(id: string) {
+    try {
+      const history = await getTaskHistory(id)
+      setHistoryByTask(prev => ({ ...prev, [id]: history }))
+      setExpandedTaskIds(prev => new Set(prev).add(id))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to load execution history')
     }
   }
 
@@ -347,6 +374,23 @@ export default function Tasks() {
                         </ol>
                       </div>
                     )}
+                    {isExpanded && historyByTask[task.id] && (
+                      <section className="task-steps-container" aria-label="Execution history">
+                        <div className="task-steps-header"><span className="steps-header-title">APPROVAL &amp; EXECUTION HISTORY</span></div>
+                        {historyByTask[task.id].length === 0 ? <p>No execution attempts recorded.</p> : (
+                          <ol className="step-pipeline">
+                            {historyByTask[task.id].map(record => (
+                              <li className="step-item" key={record.id}><div className="step-content">
+                                <div className="step-top-line"><strong>{record.event_type}{record.step_id ? ` · attempt ${record.attempt}` : ''}</strong><span>{record.status} · {formatDate(record.created_at)}</span></div>
+                                {record.output_summary && <p className="step-desc">{record.output_summary}</p>}
+                                {record.verification_result && <p className="step-desc">Verification: {record.verification_result}</p>}
+                                {record.error_details && <p className="form-error">{record.error_details}</p>}
+                              </div></li>
+                            ))}
+                          </ol>
+                        )}
+                      </section>
+                    )}
                   </div>
 
                   <div className="task-card-actions">
@@ -377,6 +421,20 @@ export default function Tasks() {
                       >
                         {isExpanded ? 'Hide Steps' : `View Steps (${task.steps.length})`}
                       </button>
+                    )}
+
+                    {task.status === 'AWAITING_APPROVAL' && !task.approved_at && (
+                      <button className="btn btn-primary" onClick={() => handleTaskAction(task.id, 'approve')} disabled={busyAction !== null}>
+                        {busyAction === `approve:${task.id}` ? 'Approving…' : 'Approve Plan'}
+                      </button>
+                    )}
+                    {task.status === 'AWAITING_APPROVAL' && task.approved_at && (
+                      <button className="btn btn-primary" onClick={() => handleTaskAction(task.id, 'execute')} disabled={busyAction !== null}>
+                        {busyAction === `execute:${task.id}` ? 'Executing…' : 'Run Approved Plan'}
+                      </button>
+                    )}
+                    {(task.approved_at || task.status === 'SUCCEEDED' || task.status === 'FAILED') && (
+                      <button className="btn btn-ghost" onClick={() => handleHistory(task.id)}>Execution History</button>
                     )}
 
                     {(task.status === 'AWAITING_APPROVAL' || task.status === 'FAILED') && (
