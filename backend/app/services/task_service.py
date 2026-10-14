@@ -18,12 +18,16 @@ not create its own database connection, it receives one.
 """
 
 from datetime import datetime, timezone
+from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException, status
 
 from app.models.task import Task, TaskStatus
+from app.models.task_step import TaskStep, StepStatus
 from app.schemas.task import TaskCreate, TaskUpdate
+from app.services.state_machine import validate_task_transition, InvalidStateTransitionError
+from app.services.planner import get_planner, PlanPolicyError
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -176,3 +180,69 @@ def get_task_counts(db: Session) -> dict[str, int]:
         counts[task_status.value] = count
     counts["total"] = sum(counts.values())
     return counts
+
+
+def plan_task(
+    db: Session,
+    task_id: str,
+    custom_instructions: Optional[str] = None,
+) -> Task:
+    """
+    Generate an ordered, validated execution plan for the specified task.
+
+    Workflow:
+    1. Retrieve the task or raise 404.
+    2. Check state machine to verify transitioning to AWAITING_APPROVAL is valid.
+    3. Generate structured steps using the deterministic planner.
+    4. Remove any prior steps (idempotent replanning).
+    5. Persist the new TaskStep records in the database.
+    6. Transition task status to AWAITING_APPROVAL.
+    7. Commit changes and return the updated Task with its steps.
+    """
+    task = _get_task_or_404(db, task_id)
+
+    # 1. State machine check
+    try:
+        validate_task_transition(task.status, TaskStatus.AWAITING_APPROVAL)
+    except InvalidStateTransitionError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+        )
+
+    # 2. Planning with policy validation
+    planner = get_planner()
+    try:
+        step_blueprints = planner.plan(
+            title=task.title,
+            description=task.description or "",
+            custom_instructions=custom_instructions,
+        )
+    except PlanPolicyError as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Plan policy validation failed: {err}",
+        )
+
+    # 3. Clear existing steps if replanning
+    db.query(TaskStep).filter(TaskStep.task_id == task_id).delete()
+
+    # 4. Create new step records
+    for blueprint in step_blueprints:
+        step = TaskStep(
+            task_id=task.id,
+            step_number=blueprint.step_number,
+            title=blueprint.title,
+            description=blueprint.description,
+            step_type=blueprint.step_type,
+            status=StepStatus.PENDING,
+        )
+        db.add(step)
+
+    # 5. Transition task status
+    task.status = TaskStatus.AWAITING_APPROVAL
+    task.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(task)
+    return task

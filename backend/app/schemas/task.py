@@ -22,9 +22,47 @@ from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from app.models.task import TaskStatus
+from app.models.task_step import StepStatus
 
 
 # ── Request schemas (what the API accepts) ─────────────────────────────────────
+
+class TaskStepCreate(BaseModel):
+    """Schema for creating a step within a task."""
+    step_number: int = Field(..., ge=1, description="1-based execution order.")
+    title: str = Field(..., min_length=1, max_length=200, description="Step title.")
+    description: str = Field(default="", max_length=5000, description="Step description.")
+    step_type: str = Field(default="general", max_length=50, description="Functional type of step.")
+
+
+class PlanGenerateRequest(BaseModel):
+    """Optional parameters when requesting a plan."""
+    custom_instructions: Optional[str] = Field(
+        default=None,
+        max_length=1000,
+        description="Optional additional context or focus for the planner.",
+    )
+
+
+# ── Response schemas (what the API returns) ───────────────────────────────────
+
+class TaskStepResponse(BaseModel):
+    """
+    A single execution step returned as part of a TaskResponse.
+    """
+    id: str
+    task_id: str
+    step_number: int
+    title: str
+    description: str
+    step_type: str
+    status: StepStatus
+    result_summary: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
 
 class TaskCreate(BaseModel):
     """

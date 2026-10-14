@@ -21,7 +21,13 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.task import TaskStatus
-from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskListResponse
+from app.schemas.task import (
+    TaskCreate,
+    TaskUpdate,
+    TaskResponse,
+    TaskListResponse,
+    PlanGenerateRequest,
+)
 from app.services import task_service
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -139,3 +145,25 @@ def delete_task(task_id: str, db: Session = Depends(get_db)):
     Returns 404 if the task does not exist.
     """
     return task_service.delete_task(db, task_id)
+
+
+# ── POST /tasks/{task_id}/plan ────────────────────────────────────────────────
+
+@router.post(
+    "/{task_id}/plan",
+    response_model=TaskResponse,
+    summary="Generate a structured execution plan for a task",
+)
+def plan_task(
+    task_id: str,
+    data: PlanGenerateRequest | None = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Generate an ordered sequence of executable steps using the deterministic planner.
+    Validates the plan against safety policies and transitions the task status to AWAITING_APPROVAL.
+    """
+    custom_instructions = data.custom_instructions if data else None
+    return task_service.plan_task(db, task_id, custom_instructions=custom_instructions)
+
+

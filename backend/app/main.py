@@ -13,9 +13,9 @@ from app.database import engine, Base
 from app.api import health
 from app.api import tasks
 
-# Import models so Base.metadata knows about the tasks table.
-# Without this import, create_all() won't create the table.
-import app.models.task  # noqa: F401
+# Import models so Base.metadata knows about all tables.
+# Without this import, create_all() won't create the tables.
+import app.models  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Create the tables in the database (if they don't already exist).

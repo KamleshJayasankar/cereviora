@@ -24,6 +24,7 @@ Why UUIDs instead of auto-incrementing integers?
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime, Text, Enum as SAEnum
+from sqlalchemy.orm import relationship
 import enum
 from app.database import Base
 
@@ -97,6 +98,15 @@ class Task(Base):
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relationship to child task steps, automatically ordered by step_number.
+    # cascade="all, delete-orphan" ensures when a Task is deleted, all its steps are also deleted.
+    steps = relationship(
+        "TaskStep",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskStep.step_number",
     )
 
     def __repr__(self) -> str:

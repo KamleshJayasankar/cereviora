@@ -23,8 +23,8 @@
  *               after the data arrives.
  */
 import { useEffect, useState, FormEvent } from 'react'
-import { getTasks, createTask, deleteTask } from '../services/api'
-import type { Task, TaskStatus } from '../types'
+import { getTasks, createTask, deleteTask, planTask } from '../services/api'
+import type { Task, TaskStatus, StepStatus } from '../types'
 import './Tasks.css'
 
 // ── Status badge helper ────────────────────────────────────────────────────────
@@ -42,6 +42,24 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
   RUNNING:           'Running',
   SUCCEEDED:         'Succeeded',
   FAILED:            'Failed',
+}
+
+const STEP_TYPE_ICONS: Record<string, string> = {
+  interpret: '◎',
+  research:  '🔍',
+  generate:   '◈',
+  extract:   '⚡',
+  save:      '⊞',
+  verify:    '✓',
+  general:   '⚙',
+}
+
+const STEP_STATUS_LABELS: Record<StepStatus, string> = {
+  PENDING:   'Pending',
+  RUNNING:   'Running',
+  SUCCEEDED: 'Succeeded',
+  FAILED:    'Failed',
+  SKIPPED:   'Skipped',
 }
 
 function formatDate(iso: string): string {
@@ -68,6 +86,34 @@ export default function Tasks() {
 
   // ── State: delete ─────────────────────────────────────────────────────────
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // ── State: planning & expansion ───────────────────────────────────────────
+  const [planningId, setPlanningId] = useState<string | null>(null)
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+
+  function toggleExpand(id: string) {
+    setExpandedTaskIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  // ── Plan handler ──────────────────────────────────────────────────────────
+  async function handlePlan(id: string) {
+    setPlanningId(id)
+    try {
+      const updated = await planTask(id)
+      setTasks(prev => prev.map(t => t.id === id ? updated : t))
+      // Automatically expand newly planned task so user sees the 5 steps immediately
+      setExpandedTaskIds(prev => new Set(prev).add(id))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to generate plan')
+    } finally {
+      setPlanningId(null)
+    }
+  }
 
   // ── Fetch tasks on mount ──────────────────────────────────────────────────
   async function loadTasks() {
@@ -227,50 +273,137 @@ export default function Tasks() {
 
         {!loading && tasks.length > 0 && (
           <ul className="task-list" role="list" aria-label="Task list">
-            {tasks.map(task => (
-              <li key={task.id} className="task-card glass-card" role="listitem">
+            {tasks.map(task => {
+              const isExpanded = expandedTaskIds.has(task.id)
+              const hasSteps = task.steps && task.steps.length > 0
+              const isPlanning = planningId === task.id
 
-                <div className="task-card-main">
-                  <div className="task-card-header">
-                    <span className={STATUS_CSS[task.status]} aria-label={`Status: ${STATUS_LABELS[task.status]}`}>
-                      {STATUS_LABELS[task.status]}
-                    </span>
-                    <span className="task-card-id" title={task.id}>
-                      #{task.id.slice(0, 8)}
-                    </span>
-                  </div>
+              return (
+                <li key={task.id} className="task-card glass-card" role="listitem">
 
-                  <h3 className="task-card-title">{task.title}</h3>
-
-                  {task.description && (
-                    <p className="task-card-desc">{task.description}</p>
-                  )}
-
-                  <div className="task-card-meta">
-                    <span title={`Created: ${task.created_at}`}>
-                      Created {formatDate(task.created_at)}
-                    </span>
-                    {task.updated_at !== task.created_at && (
-                      <span title={`Updated: ${task.updated_at}`}>
-                        · Updated {formatDate(task.updated_at)}
+                  <div className="task-card-main">
+                    <div className="task-card-header">
+                      <span className={STATUS_CSS[task.status]} aria-label={`Status: ${STATUS_LABELS[task.status]}`}>
+                        {STATUS_LABELS[task.status]}
                       </span>
+                      <span className="task-card-id" title={task.id}>
+                        #{task.id.slice(0, 8)}
+                      </span>
+                      {hasSteps && (
+                        <span className="task-steps-indicator" onClick={() => toggleExpand(task.id)}>
+                          {task.steps.length} Steps {isExpanded ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="task-card-title">{task.title}</h3>
+
+                    {task.description && (
+                      <p className="task-card-desc">{task.description}</p>
+                    )}
+
+                    <div className="task-card-meta">
+                      <span title={`Created: ${task.created_at}`}>
+                        Created {formatDate(task.created_at)}
+                      </span>
+                      {task.updated_at !== task.created_at && (
+                        <span title={`Updated: ${task.updated_at}`}>
+                          · Updated {formatDate(task.updated_at)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* ── Collapsible Structured Steps Pipeline ── */}
+                    {hasSteps && isExpanded && (
+                      <div className="task-steps-container">
+                        <div className="task-steps-header">
+                          <span className="steps-header-title">EXECUTION PLAN</span>
+                          <span className="steps-header-badge">POLICY VALIDATED</span>
+                        </div>
+                        <ol className="step-pipeline" role="list" aria-label="Task execution steps">
+                          {task.steps.map(step => (
+                            <li key={step.id} className={`step-item step-item--${step.status.toLowerCase()}`}>
+                              <div className="step-node-col">
+                                <span className="step-number">{step.step_number}</span>
+                                <div className="step-connector" />
+                              </div>
+                              <div className="step-content">
+                                <div className="step-top-line">
+                                  <span className="step-type-pill">
+                                    <span className="step-type-icon">{STEP_TYPE_ICONS[step.step_type] || '⚙'}</span>
+                                    {step.step_type}
+                                  </span>
+                                  <span className={`step-status-tag step-status-tag--${step.status.toLowerCase()}`}>
+                                    {STEP_STATUS_LABELS[step.status as StepStatus] || step.status}
+                                  </span>
+                                </div>
+                                <h4 className="step-title">{step.title}</h4>
+                                {step.description && (
+                                  <p className="step-desc">{step.description}</p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
                     )}
                   </div>
-                </div>
 
-                <div className="task-card-actions">
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => handleDelete(task.id)}
-                    disabled={deletingId === task.id}
-                    aria-label={`Delete task: ${task.title}`}
-                  >
-                    {deletingId === task.id ? '…' : 'Delete'}
-                  </button>
-                </div>
+                  <div className="task-card-actions">
+                    {task.status === 'PENDING' && (
+                      <button
+                        className="btn btn-primary btn-plan"
+                        onClick={() => handlePlan(task.id)}
+                        disabled={isPlanning}
+                        aria-label={`Generate plan for task: ${task.title}`}
+                      >
+                        {isPlanning ? (
+                          <>
+                            <span className="loading-spinner-sm" />
+                            Planning…
+                          </>
+                        ) : (
+                          '⚡ Plan Task'
+                        )}
+                      </button>
+                    )}
 
-              </li>
-            ))}
+                    {hasSteps && (
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => toggleExpand(task.id)}
+                        aria-expanded={isExpanded}
+                        aria-label="Toggle plan view"
+                      >
+                        {isExpanded ? 'Hide Steps' : `View Steps (${task.steps.length})`}
+                      </button>
+                    )}
+
+                    {(task.status === 'AWAITING_APPROVAL' || task.status === 'FAILED') && (
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => handlePlan(task.id)}
+                        disabled={isPlanning}
+                        title="Regenerate plan with fresh steps"
+                        aria-label={`Replan task: ${task.title}`}
+                      >
+                        {isPlanning ? 'Planning…' : '↺ Replan'}
+                      </button>
+                    )}
+
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => handleDelete(task.id)}
+                      disabled={deletingId === task.id || isPlanning}
+                      aria-label={`Delete task: ${task.title}`}
+                    >
+                      {deletingId === task.id ? '…' : 'Delete'}
+                    </button>
+                  </div>
+
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>
