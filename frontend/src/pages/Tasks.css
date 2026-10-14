@@ -479,10 +479,125 @@
     flex-wrap: wrap;
     align-self: stretch;
   }
+}
+
+@media (max-width: 480px) {
+  .tasks-page {
+    gap: var(--space-6);
+    padding: var(--space-4) 0 var(--space-10);
+  }
 
   .tasks-header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .tasks-title-group h1 {
+    font-size: 1.5rem;
+  }
+
+  .tasks-header .btn {
+    padding: var(--space-2) var(--space-3);
+    font-size: 0.8125rem;
+    min-height: 40px;
+  }
+
+  .create-form {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  .create-form h2 {
+    font-size: 1.15rem;
+  }
+
+  .form-actions {
+    gap: var(--space-2);
+  }
+
+  .form-actions .btn {
+    flex: 1 1 calc(50% - var(--space-1));
+    min-height: 42px;
+    padding: var(--space-2) var(--space-3);
+    font-size: 0.8125rem;
+  }
+
+  .task-card {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  .task-card-title {
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    font-size: 0.95rem;
+  }
+
+  .task-card-desc {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    font-size: 0.8125rem;
+  }
+
+  .task-card-meta {
+    font-size: 0.7rem;
+    line-height: 1.4;
+  }
+
+  .task-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    width: 100%;
+  }
+
+  .task-card-actions .btn {
+    flex: 1 1 calc(50% - var(--space-1));
+    min-width: 120px;
+    min-height: 42px;
+    padding: var(--space-2) var(--space-2);
+    font-size: 0.8rem;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .task-steps-container {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .task-steps-header {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .step-item {
+    gap: var(--space-2);
+  }
+
+  .step-content {
+    min-width: 0;
+  }
+
+  .step-top-line {
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    justify-content: space-between;
+  }
+
+  .step-title {
+    font-size: 0.8125rem;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  .step-desc {
+    font-size: 0.75rem;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 }
 

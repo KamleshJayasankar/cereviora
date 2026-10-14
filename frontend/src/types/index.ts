@@ -101,3 +101,27 @@ export interface TaskListResponse {
   total: number;
   has_more: boolean;
 }
+
+export interface TaskCounts {
+  PENDING: number;
+  AWAITING_APPROVAL: number;
+  RUNNING: number;
+  SUCCEEDED: number;
+  FAILED: number;
+  total: number;
+}
+
+export type WorkflowNodeId = 'interpret' | 'plan' | 'approve' | 'execute' | 'verify' | 'store';
+export type WorkflowNodeStatus = 'idle' | 'awaiting' | 'running' | 'success' | 'failed';
+
+export interface WorkflowNode {
+  id: WorkflowNodeId;
+  label: string;
+  icon: string;
+  description: string;
+  color: string;
+  status: WorkflowNodeStatus;
+  statusLabel: string;
+  value: string;
+  detail: string;
+}

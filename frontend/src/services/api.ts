@@ -21,6 +21,7 @@ import type {
   UpdateTaskRequest,
   HealthResponse,
   ExecutionRecord,
+  TaskCounts,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -54,6 +55,9 @@ export const getHealth = (): Promise<HealthResponse> =>
 // ──────────────────────────────────────────────────────────────────────────────
 export const getTasks = (): Promise<TaskListResponse> =>
   request<TaskListResponse>('/tasks');
+
+export const getTaskCounts = (): Promise<TaskCounts> =>
+  request<TaskCounts>('/tasks/counts');
 
 export const getTask = (id: string): Promise<Task> =>
   request<Task>(`/tasks/${id}`);

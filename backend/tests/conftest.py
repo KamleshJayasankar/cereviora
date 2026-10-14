@@ -87,3 +87,13 @@ def client():
         yield c
     app.dependency_overrides.clear()
 
+
+@pytest.fixture()
+def db_session():
+    """Direct database session for inspecting underlying tables and rows."""
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
